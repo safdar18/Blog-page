@@ -1,0 +1,94 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fb;
+  color: #1d2433;
+}
+
+header {
+  padding: 2rem;
+  text-align: center;
+  background: #1f3b67;
+  color: #fff;
+}
+
+main {
+  max-width: 960px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 6px 24px rgba(24, 39, 75, 0.08);
+}
+
+form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+input,
+textarea,
+button,
+select {
+  font: inherit;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #d4dceb;
+}
+
+button {
+  background: #204f96;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #16386a;
+}
+
+.blog {
+  border-top: 1px solid #e8edf8;
+  padding: 0.8rem 0;
+}
+
+.blog img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pill {
+  background: #e8efff;
+  color: #16386a;
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+}
+
+.comments {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f8faff;
+  border-radius: 8px;
+}
+
+#status {
+  text-align: center;
+  font-weight: 600;
+}
