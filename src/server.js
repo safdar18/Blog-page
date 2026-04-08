@@ -53,21 +53,6 @@ function isValidUserId(userId) {
   return /^[a-zA-Z0-9_]{3,30}$/.test(userId);
 }
 
-function mapBlog(row) {
-  return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    imagePath: row.image_path,
-    createdAt: row.created_at,
-    authorUserId: row.author_user_id,
-    likes: row.likes,
-    dislikes: row.dislikes,
-    commentsCount: row.comments_count,
-    averageRating: row.average_rating ? Number(row.average_rating).toFixed(2) : null,
-  };
-}
-
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -87,18 +72,14 @@ app.post('/api/auth/register', authLimiter, (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
   }
 
-  const existing = db
-    .prepare('SELECT id FROM users WHERE user_id = ? OR email = ?')
-    .get(userId.trim(), email.trim().toLowerCase());
+  const normalizedUserId = userId.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = db.findUserByUserIdOrEmail(normalizedUserId, normalizedEmail);
   if (existing) return res.status(409).json({ error: 'User ID or email already in use.' });
 
   const passwordHash = bcrypt.hashSync(password, 12);
+  const user = db.createUser({ user_id: normalizedUserId, email: normalizedEmail, password_hash: passwordHash });
 
-  const result = db
-    .prepare('INSERT INTO users (user_id, email, password_hash) VALUES (?, ?, ?)')
-    .run(userId.trim(), email.trim().toLowerCase(), passwordHash);
-
-  const user = db.prepare('SELECT id, user_id, email FROM users WHERE id = ?').get(result.lastInsertRowid);
   const token = generateToken(user);
 
   return res.status(201).json({ token, user: { id: user.id, userId: user.user_id, email: user.email } });
@@ -111,9 +92,8 @@ app.post('/api/auth/login', authLimiter, (req, res) => {
     return res.status(400).json({ error: 'userIdOrEmail and password are required.' });
   }
 
-  const user = db
-    .prepare('SELECT id, user_id, email, password_hash FROM users WHERE user_id = ? OR email = ?')
-    .get(userIdOrEmail.trim(), userIdOrEmail.trim().toLowerCase());
+  const normalized = userIdOrEmail.trim();
+  const user = db.findUserByUserIdOrEmail(normalized, normalized.toLowerCase());
 
   if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
 
@@ -124,27 +104,25 @@ app.post('/api/auth/login', authLimiter, (req, res) => {
   return res.json({ token, user: { id: user.id, userId: user.user_id, email: user.email } });
 });
 
-app.get('/api/blogs', (req, res) => {
-  const rows = db
-    .prepare(`
-      SELECT
-        b.*,
-        u.user_id AS author_user_id,
-        SUM(CASE WHEN r.type = 'like' THEN 1 ELSE 0 END) AS likes,
-        SUM(CASE WHEN r.type = 'dislike' THEN 1 ELSE 0 END) AS dislikes,
-        COUNT(DISTINCT c.id) AS comments_count,
-        AVG(rt.rating) AS average_rating
-      FROM blogs b
-      JOIN users u ON u.id = b.author_id
-      LEFT JOIN reactions r ON r.blog_id = b.id
-      LEFT JOIN comments c ON c.blog_id = b.id
-      LEFT JOIN ratings rt ON rt.blog_id = b.id
-      GROUP BY b.id
-      ORDER BY b.created_at DESC
-    `)
-    .all();
+app.get('/api/blogs', (_req, res) => {
+  const blogs = db.listBlogs().map((blog) => {
+    const author = db.findUserById(blog.author_id);
+    const stats = db.getBlogStats(blog.id);
+    return {
+      id: blog.id,
+      title: blog.title,
+      content: blog.content,
+      imagePath: blog.image_path,
+      createdAt: blog.created_at,
+      authorUserId: author ? author.user_id : 'unknown',
+      likes: stats.likes,
+      dislikes: stats.dislikes,
+      commentsCount: stats.commentsCount,
+      averageRating: stats.averageRating,
+    };
+  });
 
-  return res.json(rows.map(mapBlog));
+  return res.json(blogs);
 });
 
 app.post('/api/blogs', requireAuth, upload.single('image'), (req, res) => {
@@ -154,12 +132,9 @@ app.post('/api/blogs', requireAuth, upload.single('image'), (req, res) => {
   }
 
   const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+  const blog = db.createBlog({ author_id: req.user.id, title: title.trim(), content: content.trim(), image_path: imagePath });
 
-  const result = db
-    .prepare('INSERT INTO blogs (author_id, title, content, image_path) VALUES (?, ?, ?, ?)')
-    .run(req.user.id, title.trim(), content.trim(), imagePath);
-
-  return res.status(201).json({ id: result.lastInsertRowid, message: 'Blog created.' });
+  return res.status(201).json({ id: blog.id, message: 'Blog created.' });
 });
 
 app.post('/api/blogs/:id/reaction', requireAuth, (req, res) => {
@@ -170,14 +145,10 @@ app.post('/api/blogs/:id/reaction', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'type must be like or dislike.' });
   }
 
-  const blog = db.prepare('SELECT id FROM blogs WHERE id = ?').get(blogId);
+  const blog = db.findBlogById(blogId);
   if (!blog) return res.status(404).json({ error: 'Blog not found.' });
 
-  db.prepare(
-    `INSERT INTO reactions (blog_id, user_id, type) VALUES (?, ?, ?)
-     ON CONFLICT(blog_id, user_id) DO UPDATE SET type = excluded.type, created_at = CURRENT_TIMESTAMP`
-  ).run(blogId, req.user.id, type);
-
+  db.upsertReaction({ blog_id: blogId, user_id: req.user.id, type });
   return res.json({ message: `Reaction set to ${type}.` });
 });
 
@@ -189,31 +160,27 @@ app.post('/api/blogs/:id/rating', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'rating must be an integer between 1 and 5.' });
   }
 
-  const blog = db.prepare('SELECT id FROM blogs WHERE id = ?').get(blogId);
+  const blog = db.findBlogById(blogId);
   if (!blog) return res.status(404).json({ error: 'Blog not found.' });
 
-  db.prepare(
-    `INSERT INTO ratings (blog_id, user_id, rating) VALUES (?, ?, ?)
-     ON CONFLICT(blog_id, user_id) DO UPDATE SET rating = excluded.rating, created_at = CURRENT_TIMESTAMP`
-  ).run(blogId, req.user.id, rating);
-
+  db.upsertRating({ blog_id: blogId, user_id: req.user.id, rating });
   return res.json({ message: 'Rating submitted.' });
 });
 
 app.get('/api/blogs/:id/comments', requireAuth, (req, res) => {
   const blogId = Number(req.params.id);
-  const blog = db.prepare('SELECT id FROM blogs WHERE id = ?').get(blogId);
+  const blog = db.findBlogById(blogId);
   if (!blog) return res.status(404).json({ error: 'Blog not found.' });
 
-  const comments = db
-    .prepare(
-      `SELECT c.id, c.comment, c.created_at, u.user_id
-       FROM comments c
-       JOIN users u ON u.id = c.user_id
-       WHERE c.blog_id = ?
-       ORDER BY c.created_at DESC`
-    )
-    .all(blogId);
+  const comments = db.listCommentsByBlogId(blogId).map((comment) => {
+    const user = db.findUserById(comment.user_id);
+    return {
+      id: comment.id,
+      comment: comment.comment,
+      created_at: comment.created_at,
+      user_id: user ? user.user_id : 'unknown',
+    };
+  });
 
   return res.json(comments);
 });
@@ -225,11 +192,10 @@ app.post('/api/blogs/:id/comments', requireAuth, (req, res) => {
   if (!text) return res.status(400).json({ error: 'comment is required.' });
   if (text.length > 1000) return res.status(400).json({ error: 'comment too long (max 1000).' });
 
-  const blog = db.prepare('SELECT id FROM blogs WHERE id = ?').get(blogId);
+  const blog = db.findBlogById(blogId);
   if (!blog) return res.status(404).json({ error: 'Blog not found.' });
 
-  db.prepare('INSERT INTO comments (blog_id, user_id, comment) VALUES (?, ?, ?)').run(blogId, req.user.id, text);
-
+  db.addComment({ blog_id: blogId, user_id: req.user.id, comment: text });
   return res.status(201).json({ message: 'Comment added.' });
 });
 

@@ -8,8 +8,8 @@ A secure full-stack blog page with:
 - Comment reading restricted to authenticated users (prompting user-ID creation first)
 
 ## Tech stack
-- Node.js + Express
-- SQLite (`better-sqlite3`)
+- Node.js + Express (Node 16+ compatible)
+- JSON file storage (`data.json`) for users/blogs/interactions
 - Vanilla HTML/CSS/JS frontend
 
 ## Run
@@ -26,4 +26,9 @@ Open: `http://localhost:3000`
 - JWT-based authentication
 - Helmet HTTP hardening
 - Rate limiting on auth routes
-- Input checks and DB constraints
+- Input checks and upload validation
+
+## Why this avoids your install error
+- Removed `better-sqlite3` (native module that required Visual Studio build tools on your Windows setup).
+- Downgraded to `helmet@7` to support Node 16.14.x.
+- Upgraded to `multer@2` to avoid 1.x deprecation warnings.
