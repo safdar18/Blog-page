@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlogVerse</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="nav-container">
+      <div class="logo"><i class="fas fa-feather-alt"></i> BlogVerse</div>
+      <div class="search-bar"><i class="fas fa-search"></i><input id="searchInput" placeholder="Search posts..."></div>
+      <button class="btn btn-primary" data-tab-target="create-tab"><i class="fas fa-plus"></i> Create Post</button>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <aside class="sidebar-card">
+      <button class="tab-btn active" data-tab-target="feed-tab">Feed</button>
+      <button class="tab-btn" data-tab-target="auth-tab">Sign In / Sign Up</button>
+      <button class="tab-btn" data-tab-target="create-tab">Create Post</button>
+      <button class="tab-btn" data-tab-target="mine-tab">Delete My Posts</button>
+      <hr>
+      <select id="categoryFilter" class="form-control">
+        <option value="All">All Categories</option>
+        <option>Technology</option><option>Programming</option><option>Design</option><option>Business</option><option>Lifestyle</option>
+      </select>
+      <p id="status"></p>
+    </aside>
+
+    <section>
+      <div id="feed-tab" class="tab-panel active">
+        <div id="postsGrid" class="posts-grid"></div>
+      </div>
+
+      <div id="auth-tab" class="tab-panel">
+        <div class="auth-card">
+          <div class="mini-tabs">
+            <button class="mini-tab active" data-auth-tab="signup">Sign Up</button>
+            <button class="mini-tab" data-auth-tab="signin">Sign In</button>
+          </div>
+
+          <form id="signupForm" class="auth-form">
+            <input class="form-control" id="signupUserId" placeholder="User ID" required>
+            <input class="form-control" id="signupEmail" type="email" placeholder="Email" required>
+            <input class="form-control" id="signupPassword" type="password" placeholder="Password (min 8)" required>
+            <button class="btn btn-primary" type="submit">Create Account</button>
+          </form>
+
+          <form id="signinForm" class="auth-form hidden">
+            <input class="form-control" id="signinIdentifier" placeholder="User ID or Email" required>
+            <input class="form-control" id="signinPassword" type="password" placeholder="Password" required>
+            <button class="btn btn-primary" type="submit">Sign In</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="create-tab" class="tab-panel">
+        <form id="createPostForm" class="card">
+          <input class="form-control" id="postTitle" placeholder="Post title" required>
+          <div class="row-2">
+            <select class="form-control" id="postCategory" required>
+              <option value="">Select category</option>
+              <option>Technology</option><option>Programming</option><option>Design</option><option>Business</option><option>Lifestyle</option>
+            </select>
+            <input class="form-control" id="postTags" placeholder="Tags (comma separated)">
+          </div>
+          <textarea class="form-control" id="postExcerpt" placeholder="Short excerpt"></textarea>
+          <textarea class="form-control" id="postContent" placeholder="Write your content" rows="8" required></textarea>
+          <input class="form-control" id="postImage" type="file" accept="image/*">
+          <button class="btn btn-primary" type="submit">Publish</button>
+        </form>
+      </div>
+
+      <div id="mine-tab" class="tab-panel">
+        <div id="myPosts" class="posts-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <template id="postTemplate">
+    <article class="post-card">
+      <img class="post-image" alt="post image">
+      <div class="post-body">
+        <h3 class="post-title"></h3>
+        <p class="post-meta"></p>
+        <p class="post-excerpt"></p>
+        <div class="chips"></div>
+        <div class="stats"></div>
+        <div class="actions">
+          <button class="btn btn-ghost likeBtn"><i class="fas fa-heart"></i> Like</button>
+          <button class="btn btn-ghost dislikeBtn"><i class="fas fa-thumbs-down"></i> Dislike</button>
+          <select class="form-control ratingSelect"><option value="">Rate</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+          <button class="btn btn-ghost commentBtn"><i class="fas fa-comments"></i> Comments</button>
+        </div>
+        <form class="commentForm hidden"><input class="form-control commentInput" placeholder="Write comment"><button class="btn btn-primary" type="submit">Send</button></form>
+        <div class="comments"></div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/public/script.js"></script>
+</body>
+</html>
